@@ -1,7 +1,7 @@
 #  coding: utf-8 
-import socketserver
+import os, mimetypes, socketserver
 
-# Copyright 2013 Abram Hindle, Eddie Antonio Santos
+# Copyright 2013 Abram Hindle, Eddie Antonio Santos, ZiQing Ma
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,14 +26,55 @@ import socketserver
 
 # try: curl -v -X GET http://127.0.0.1:8080/
 
+STATUS = {200: "HTTP/1.1 200 OK\r\n", 301: "HTTP/1.1 301 Moved Permanently\r\n",
+                    404: "HTTP/1.1 404 Not Found\r\n", 405: "HTTP/1.1 405 Method Not Allowed\r\n"}
+
+
+ALLOWED_TYPES = ["text/html", "text/css"]
+
 
 class MyWebServer(socketserver.BaseRequestHandler):
-    
     def handle(self):
-        self.data = self.request.recv(1024).strip()
-        print ("Got a request of: %s\n" % self.data)
-        self.request.sendall(bytearray("OK",'utf-8'))
+        self.data = self.request.recv(1024).strip().decode().split()
+        self.request_method = self.data[0]
+        self.path = self.data[1]
+        if self.request_method == "GET":
+            self.parse(self.path)
 
+        else:
+            self.request.sendall(bytearray(STATUS[405].encode()))
+            return
+
+
+    def parse(self, path):
+        serve_dir, serve_from = "/www", "www"
+        path = serve_from + path
+        if not os.path.exists(path):
+            self.request.sendall(bytearray(STATUS[404].encode()))
+            return
+            
+        dir = os.path.dirname(os.path.abspath("__file__")) + serve_dir
+        if dir not in os.path.abspath(path):
+            self.request.sendall(bytearray(STATUS[404].encode()))
+            return
+
+        if os.path.isdir(path) and path[-1] != "/":
+            self.request.sendall(bytearray(STATUS[301].encode()))
+            return
+
+        if path[-1] == "/":
+            path += "index.html"
+        
+        response = STATUS[200]
+        content_type = mimetypes.guess_type(path)[0]
+        if content_type in ALLOWED_TYPES:
+            response += "Content-Type: {}; charset={}\r\n".format(content_type, "UTF-8")
+        else:
+            response += "Content-Type: application/octet-stream\r\n"
+        response += open(path, 'r').read()
+        self.request.sendall(bytearray(response.encode()))
+
+    
 if __name__ == "__main__":
     HOST, PORT = "localhost", 8080
 
