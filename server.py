@@ -68,9 +68,9 @@ class MyWebServer(socketserver.BaseRequestHandler):
         response = STATUS[200]
         content_type = mimetypes.guess_type(path)[0]
         if content_type in ALLOWED_TYPES:
-            response += "Content-Type: {}; charset={}\r\n".format(content_type, "UTF-8")
+            response += "Content-Type: {}; charset={}\n\n".format(content_type, "UTF-8")
         else:
-            response += "Content-Type: application/octet-stream\r\n"
+            response += "Content-Type: application/octet-stream\n\n"
         response += open(path, 'r').read()
         self.request.sendall(bytearray(response.encode()))
 
